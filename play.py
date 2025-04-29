@@ -5,8 +5,8 @@ import pandas as pd
 import os
 import pickle
 
-N_DICE = (1, 1) # tuple (number of dice P1, number of dice P2)
-USE_PHYSICAL_DICE = False
+N_DICE = (1, 1) # tuple (number of dice PLAYER_0, number of dice PLAYER_1). PLAYER_0 starts.
+USE_PHYSICAL_DICE = False # You can play against the Nash equilibrium using physical dice.
 
 class Die():
     faces = ["L", "2", "3", "4", "5", "6"] # Llamas first
@@ -270,6 +270,7 @@ class Node():
                 self.winner[i, j] = winner
 
 
+# PLAY AGAINS THE NASH EQUILIBRIUM
 starter = np.random.choice(2)
 players = [Player(i, human=(i + starter)%2, physical_dice=USE_PHYSICAL_DICE) for i in range(len(N_DICE))]
 file_name = "grandfather.pkl"
@@ -285,22 +286,27 @@ else:
 Player.faceoff(players[0], players[1])
 
 
+# TRAIN NASH EQUILIBRIUM
 def get_prob_1_wins(leaf):
     prob_1_wins = leaf.probability * leaf.winner
     if leaf.player:
         prob_1_wins = prob_1_wins.t()
     return prob_1_wins
 
+
+## The following function was to be included in the loss but relied on some incorrect assumptions
 # def get_advantage(leaf, prob_1_wins=0.5):
 #     score_1 = torch.sum(leaf.probability * leaf.winner)
 #     score_0 = torch.sum(leaf.probability) - score_1
 #     return(score_1 / prob_1_wins - score_0 / (1 - prob_1_wins))
+
 
 def get_entropy(leaf):
     entropy = - leaf.probability * torch.log(leaf.probability) / np.log(2)
     if leaf.player:
         entropy = entropy.t()
     return entropy
+
 
 def get_loss(player, balance_factor=0.01):
     stacked = torch.stack([get_prob_1_wins(leaf) for leaf in Node.leaves], dim=0)
@@ -312,12 +318,13 @@ def get_loss(player, balance_factor=0.01):
     loss += balance_factor * torch.sum(stacked)
     return loss
 
+
 def calculate_equilibrium(lr = 0.005):
     opt_p0 = torch.optim.Adam(Node.player_logits[0], lr=lr)
     opt_p1 = torch.optim.Adam(Node.player_logits[1], lr=lr)
 
-    for it in range(1500, 2000):
-        balance_factor = 1 / (it + 1)
+    for it in range(2000):
+        balance_factor = 1 / (it + 1) # slowly decrease the need for nigh entropy
 
         opt_p0.zero_grad()
         grandfather_node.reset_probability()
