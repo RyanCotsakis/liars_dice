@@ -5,9 +5,6 @@ import pandas as pd
 import os
 import pickle
 
-import ipywidgets as widgets
-from IPython.display import display
-
 N_DICE = (1, 1) # tuple (number of dice P1, number of dice P2)
 USE_PHYSICAL_DICE = False
 
